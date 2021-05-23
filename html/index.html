@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <link rel="stylesheet" type="text/css" href="public/style.css" />
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+  <script>
+    let tours
+    let orderSortName = false 
+    let orderSort = false
+    $(document).ready(function () {
+      $.ajax({
+        url: "/tourList",
+        dataType: "json",
+        success: function (result) {
+          tours = result
+
+          createTable()
+          $("#addTourUp").click(() => window.location.href = 'add_tour')
+          $("#addTourDown").click(() => window.location.href = 'add_tour')
+          $("#sortName").click(() => sortByName())
+          $("#sortPrice").click(() => sortByPriceOrDurationOrDate("price"))
+          $("#sortDuration").click(() => sortByPriceOrDurationOrDate("duration"))
+          $("#sortDate").click(() => sortByPriceOrDurationOrDate("start_date"))
+
+        },
+        error: function (err) {
+          console.log("in err", err);
+        }
+      });
+    });
+    // sort function for all methods 
+    function sortByPriceOrDurationOrDate(typeToSort) {
+      orderSort = !orderSort
+      temparray = []
+      for (let key in tours) {
+        if (tours.hasOwnProperty(key)) {
+          temparray.push(tours[key][typeToSort])
+        }
+      }
+      if (typeToSort == "start_date")
+        temparray.sort()
+      else
+        temparray.sort(function (a, b) { return a - b })
+      if (!orderSort)
+        temparray.reverse()
+      let newData = {}
+      for (let i = 0; i < temparray.length; i++) {
+        for (let key in tours) {
+          if (tours.hasOwnProperty(key)) {
+            if (tours[key][typeToSort] == temparray[i])
+              newData[key] = tours[key]
+          }
+        }
+      }
+      tours = newData
+      $("#list").empty()
+      createTable()
+    }
+    // sort by name
+    function sortByName() {
+      orderSortName = !orderSortName
+      keytours = []
+      for (let key in tours) {
+        if (tours.hasOwnProperty(key)) {
+          keytours.push(key)
+        }
+      }
+      keytours.sort()
+      if (orderSortName)
+        keytours.reverse()
+      let newData = {}
+      for (let i = 0; i < keytours.length; i++) {
+        for (let key in tours) {
+          if (tours.hasOwnProperty(key)) {
+            if (key == keytours[i])
+              newData[key] = tours[key]
+          }
+        }
+      }
+      tours = newData
+      $("#list").empty()
+      createTable()
+    }
+
+    function deleteTour(nameTour) {
+      $.ajax({
+        url: "/tourIdDelete/" + nameTour,
+        dataType: "json",
+        type: "DELETE",
+        success: function (result) {
+          tours = result
+          $("#list").empty()
+          createTable()
+        },
+        error: function (err) {
+          console.log("err", err);
+        }
+      });
+    }
+
+    function deleteSite(nameTour, nameSite) {
+      $.ajax({
+        url: "/tourId/" + nameTour + "/siteName/" + nameSite,
+        dataType: "json",
+        type: "DELETE",
+        success: function (result) {
+          temp=tours
+          temp[nameTour].path=result[nameTour].path
+          tours = temp
+          $("#list").empty()
+          createTable()
+
+        },
+        error: function (err) {
+          console.log("err", err);
+        }
+      });
+    }
+
+    function addSite(nameTour) {
+      window.location.href = 'add_site' + "#" + nameTour
+
+    }
+
+
+    function editTour(nameTour) {
+      window.location.href = 'edit_tour' + "#" + nameTour
+    }
+
+    function showPath(tourName, pathArr) {
+      $("#" + tourName + "_divPath").append(pathArr)
+      $("#" + tourName + "_path").hide()
+      for (let j = 0; j < tours[tourName].path.length; j++) {
+        $("#" + tourName + "_deleteSite_" + tours[tourName].path[j].name).click(() => deleteSite(tourName, tours[tourName].path[j].name));
+      }
+
+    }
+
+
+
+    function createTable() {
+      // build rows and colums of the table
+      $("#list").append("<table>");
+      $("#list").append("<tr><td>Name</td><td>start date</td><td>duration</td><td>price</td><td>guide</td><td>path</td><td>option</td></tr>");
+      for (let i = 0; i < Object.keys(tours).length; i++) {
+        let tour = tours[Object.keys(tours)[i]]
+
+        let pathArr = ""
+        for (let j = 0; j < tour.path.length; j++) {
+          pathArr += "Name: " + tour.path[j].name + " ,Country: " + tour.path[j].country + "<br>" + "<button id=\"" + Object.keys(tours)[i] + "_deleteSite_" + tour.path[j].name + "\">Delete site</button><br>"
+        }
+        $("#list").append("<tr id=\"tr" + Object.keys(tours)[i] + "\"><td>" + Object.keys(tours)[i] + "</td><td>" + tour.start_date + "</td><td>" + tour.duration + "</td><td>" + tour.price +
+          "</td><td> Name: " + tour.guide.name + "<br>Email: " + tour.guide.email + "<br>cellular: " + tour.guide.cellular + "</td>"
+          + "<td><div id=\"" + Object.keys(tours)[i] + "_divPath\"><button id=\"" + Object.keys(tours)[i] + "_path\">Show path</button></div></td>" +
+          "<td><button id=\"" + Object.keys(tours)[i] + "_delete\">Delete tour</button><br>" +
+          "<button id=\"" + Object.keys(tours)[i] + "_edit\">Edit tour</button><br>" +
+          "<button id=\"" + Object.keys(tours)[i] + "_site\">Add a new site</button></td>" +
+          "</tr>");
+        
+        //liseners 
+        $("#" + Object.keys(tours)[i] + "_path").click(() => showPath(Object.keys(tours)[i], pathArr));
+        $("#" + Object.keys(tours)[i] + "_delete").click(() => deleteTour(Object.keys(tours)[i]));
+        $("#" + Object.keys(tours)[i] + "_edit").click(() => editTour(Object.keys(tours)[i]));
+        $("#" + Object.keys(tours)[i] + "_site").click(() => addSite(Object.keys(tours)[i]));
+      }
+
+      $("#list").append("</table>");
+    }
+
+  </script>
+</head>
+
+<body>
+
+  <div class="head">
+    <h1 class="header"> Shuru Turu </h1>
+  </div>
+
+  <div class="divButtons">
+    <button id="addTourUp">Add tour</button>
+    <button id="sortName">Sort By Name </button>
+    <button id="sortPrice">Sort By Price</button>
+    <button id="sortDate">Sort By Date</button>
+    <button id="sortDuration">Sort By Duration</button>
+    <h3>Each click on the sort buttons wiil sort the info in asceding/descending</h3>
+  </div>
+  <div class="details">
+    <div id="list"></div>
+  </div>
+  <br>
+  <button id="addTourDown">Add tour</button>
+
+</body>
+
+</html>
